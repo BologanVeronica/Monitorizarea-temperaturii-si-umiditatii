@@ -1,0 +1,96 @@
+#include <dht.h>
+#include <IRremote.h>
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h>
+#define DHT11_PIN A0 
+#define Relay_PIN 2
+#define RECV_PIN 11
+LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
+
+  dht DHT;
+  int baseTemp = 0;
+  int baseTempset = 0;
+  IRrecv irrecv(RECV_PIN);
+  decode_results results;
+  
+void setup()
+{
+    Serial.begin(9600);
+    InitRelay();
+    InitLCD();  
+    InitTempHumSensor();
+}
+
+void loop()
+{
+    AfisareDate();
+}
+
+void InitRelay()
+{
+  pinMode(Relay_PIN, OUTPUT);
+  digitalWrite(Relay_PIN, LOW);
+}
+
+void InitTempHumSensor()
+{
+ pinMode(DHT11_PIN, INPUT); 
+}
+
+void InitLCD()
+{
+  lcd.begin(16, 2);                     
+  lcd.backlight();
+  baseTemp = 30;
+  irrecv.enableIRIn();
+}
+
+void AfisareDate()
+{
+    Serial.print(results.value, HEX);
+    Serial.println();
+    DHT.read11(DHT11_PIN);
+    lcd.setCursor(0,0);
+    lcd.print("Set temp: ");
+    lcd.print(baseTemp);
+    lcd.print("C ");
+    lcd.setCursor(0,1);
+    lcd.print(DHT.temperature);
+    lcd.print("C ");
+    lcd.print("Humidity:");
+    lcd.print( DHT.humidity );
+    lcd.print("%");
+    delay(2000);
+    
+       if (irrecv.decode(&results))
+      {
+          switch(results.value)
+          {
+              case 0xFF629D : 
+              baseTempset = baseTemp ++;          
+              lcd.print(baseTemp);      
+              irrecv.resume(); 
+           }
+           
+           switch(results.value)
+          {
+              case 0xFFA857:
+              baseTempset = baseTemp --;
+              lcd.print(baseTemp);          
+              irrecv.resume(); 
+           }
+
+                if(baseTemp < DHT.temperature)
+                  {
+                      digitalWrite(Relay_PIN, HIGH);
+                      Serial.println("Relay on");
+                   }
+                 else
+                   {
+                      digitalWrite(Relay_PIN, LOW);
+                      Serial.println("Relay off");
+                    }
+                    
+       } 
+       
+}
